@@ -1,0 +1,4 @@
+# Fase 7: interface de chat (Streamlit). Só conversa com a API via HTTP: não depende do resto do projeto.
+streamlit>=1.40
+requests>=2.32
+pandas>=2.2

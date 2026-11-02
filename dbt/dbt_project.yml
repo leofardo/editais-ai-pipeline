@@ -1,0 +1,22 @@
+name: editais
+version: "1.0.0"
+config-version: 2
+profile: editais
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Lista de versões de prompt aceitas na gold. Vazio = usa a extração mais recente de cada edital.
+  prompt_version: ""
+
+models:
+  editais:
+    staging:
+      +schema: staging          # -> dataset editais_gold_staging (views, custo zero)
+      +materialized: view
+    gold:
+      +materialized: table      # tabelas pequenas: CREATE OR REPLACE é barato e funciona no Sandbox

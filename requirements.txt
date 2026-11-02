@@ -1,0 +1,12 @@
+# Fase 1: ingestão
+pypdf
+pymupdf
+
+# Fase 2: silver (extração com LLM)
+openai
+pydantic
+
+# Fases seguintes (descomente quando chegar lá):
+# langchain
+# langchain-openai
+# langchain-postgres

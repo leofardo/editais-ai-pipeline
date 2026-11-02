@@ -1,0 +1,14 @@
+# Sem segredos aqui: tudo vem de variáveis de ambiente (.env / docker-compose).
+editais:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: editais_gold
+      location: "{{ env_var('BQ_LOCATION', 'US') }}"
+      threads: 4
+      job_execution_timeout_seconds: 300
+      maximum_bytes_billed: 1000000000   # trava de custo: nenhuma query pode ler mais de 1 GB

@@ -1,0 +1,16 @@
+.env
+credentials/*
+!credentials/.gitkeep
+logs/*
+!logs/.gitkeep
+data/landing/*
+!data/landing/.gitkeep
+data/lake/*
+!data/lake/.gitkeep
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/

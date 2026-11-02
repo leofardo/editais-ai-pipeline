@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: silver
+    schema: editais_silver
+    description: "Camada silver: texto limpo e extração estruturada feita pelo LLM (Airflow)."
+    tables:
+      - name: editais
+        description: "1 linha por edital x modelo x versão do prompt."
+      - name: cargos
+        description: "1 linha por cargo extraído."
+      - name: extraction_eval
+        description: "Avaliação da extração contra os gabaritos manuais."
+  - name: bronze
+    schema: editais_bronze
+    tables:
+      - name: ingestion_manifest

@@ -1,0 +1,33 @@
+{
+  "original_filename": "ufg_edital_21_2025.pdf",
+  "conferido_por": "manual, lendo o PDF (págs. 1, 2, 19, 20, 23). O PDF NÃO contém o Anexo II (quadro de vagas): vagas devem vir null.",
+  "edital": {
+    "orgao": "Universidade Federal de Goiás",
+    "numero_edital": "21/2025",
+    "banca_organizadora": "Instituto Verbena/UFG",
+    "esfera": "federal",
+    "uf": "GO",
+    "data_publicacao": "2025-08-08",
+    "inscricao_inicio": "2025-08-18",
+    "inscricao_fim": "2025-09-04",
+    "data_prova": "2025-09-28",
+    "taxa_inscricao_min": 130.0,
+    "taxa_inscricao_max": 150.0
+  },
+  "cargos": [
+    {"nome": "Assistente em Administração – Região Metropolitana de Goiânia", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Assistente em Administração – Câmpus Goiás", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Técnico em Contabilidade", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Técnico em Enfermagem", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Técnico de Laboratório/Área: Áudio", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Técnico de Laboratório/Área: Audiovisual", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Técnico de Laboratório/Área: Iluminação e som", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Técnico de Laboratório/Área: Ciências", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Técnico de Laboratório/Área: Materiais de construção", "escolaridade": ["medio", "tecnico"], "vagas_total": null, "salario_inicial": 3029.90},
+    {"nome": "Administrador", "escolaridade": ["superior"], "vagas_total": null, "salario_inicial": 4967.04},
+    {"nome": "Arquivista", "escolaridade": ["superior"], "vagas_total": null, "salario_inicial": 4967.04},
+    {"nome": "Biomédico", "escolaridade": ["superior"], "vagas_total": null, "salario_inicial": 4967.04},
+    {"nome": "Engenheiro/Área: Biomédico", "escolaridade": ["superior"], "vagas_total": null, "salario_inicial": 4967.04},
+    {"nome": "Técnico Desportivo", "escolaridade": ["superior"], "vagas_total": null, "salario_inicial": 4967.04}
+  ]
+}

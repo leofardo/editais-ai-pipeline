@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: dim_editais
+    description: "Uma linha por edital (extração mais recente)."
+    columns:
+      - name: edital_id
+        description: "sha256 do PDF original."
+        tests: [unique, not_null]
+      - name: orgao
+        tests: [not_null]
+      - name: esfera
+        tests:
+          - accepted_values:
+              values: ["municipal", "estadual", "federal", "nao_informado"]
+      - name: status_inscricao
+        tests:
+          - accepted_values:
+              values: ["em_breve", "aberta", "encerrada", "sem_data"]
+      - name: taxa_inscricao_max
+        tests:
+          - between: {min_value: 0, max_value: 1000}
+
+  - name: fct_cargos
+    description: "Um registro por cargo, com dados do edital."
+    columns:
+      - name: cargo_id
+        tests: [unique, not_null]
+      - name: edital_id
+        tests:
+          - not_null
+          - relationships: {to: ref('dim_editais'), field: edital_id}
+      - name: escolaridade
+        tests:
+          - accepted_values:
+              values: ["fundamental", "medio", "tecnico", "superior", "nao_informado"]
+      - name: salario_inicial
+        description: "Salário-mínimo 2025 (R$ 1.518) como piso aproximado; teto constitucional como máximo."
+        tests:
+          - between: {min_value: 1000, max_value: 46366.19}
+      - name: vagas_total
+        tests:
+          - between: {min_value: 1, max_value: 20000}
+      - name: numeros_ancorados
+        description: "False = vagas ou salário não aparecem no texto enviado ao LLM (suspeita de conta/alucinação)."
+        tests:
+          - accepted_values:
+              values: [true]
+              quote: false
+              config: {severity: warn}
+
+  - name: agg_vagas_por_area
+  - name: agg_qualidade_extracao

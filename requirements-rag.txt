@@ -1,0 +1,11 @@
+# Fase 4 (RAG + Text-to-SQL + avaliação). Ambiente isolado do Airflow, como o dbt.
+langchain-core>=1.0
+langchain-openai>=1.0
+langchain-postgres>=0.0.15
+langchain-text-splitters>=1.0
+langchain-classic>=1.0        # QAEvalChain / QAGenerationChain (APIs "clássicas" da aula)
+psycopg[binary]>=3.2
+tiktoken
+google-cloud-bigquery>=3.20
+pydantic>=2
+langgraph>=1.0

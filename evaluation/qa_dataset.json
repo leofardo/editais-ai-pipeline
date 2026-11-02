@@ -1,0 +1,87 @@
+[
+  {
+    "query": "Qual o salário inicial do cargo de Auditor de Controle Externo no Tribunal de Contas do Estado de São Paulo?",
+    "answer": "R$ 17.743,05",
+    "tipo": "sql"
+  },
+  {
+    "query": "Quantas vagas, no total, o concurso da Secretaria de Estado de Educação de Minas Gerais oferece?",
+    "answer": "13.795 vagas",
+    "tipo": "sql"
+  },
+  {
+    "query": "Qual é a banca organizadora do concurso do Tribunal de Contas do Estado de São Paulo?",
+    "answer": "Fundação VUNESP",
+    "tipo": "sql"
+  },
+  {
+    "query": "Quantas vagas há para Auditor de Controle Externo - Administração no TCE-SP?",
+    "answer": "4 vagas",
+    "tipo": "sql"
+  },
+  {
+    "query": "Qual o vencimento inicial dos cargos de nível superior no concurso de técnico-administrativos da UFG 2025?",
+    "answer": "R$ 4.967,04",
+    "tipo": "sql"
+  },
+  {
+    "query": "Qual o valor da taxa de inscrição do concurso do TCE-SP?",
+    "answer": "R$ 82,00",
+    "tipo": "sql"
+  },
+  {
+    "query": "No concurso da UFG, quem tem direito à isenção da taxa de inscrição?",
+    "answer": "Candidatos de família inscrita no CadÚnico com renda familiar mensal per capita de até meio salário-mínimo, e doadores de medula óssea (Lei 13.656/2018).",
+    "tipo": "rag"
+  },
+  {
+    "query": "Qual o período de inscrições do concurso da UFG (edital 21/2025)?",
+    "answer": "De 18/08/2025 a 04/09/2025.",
+    "tipo": "rag"
+  },
+  {
+    "query": "Em qual cidade será aplicada a prova objetiva do concurso do TCE-SP?",
+    "answer": "Preferencialmente na cidade de São Paulo/SP.",
+    "tipo": "rag"
+  },
+  {
+    "query": "Qual percentual das vagas do concurso do TCE-SP é reservado a candidatos negros?",
+    "answer": "20% das vagas.",
+    "tipo": "rag"
+  },
+  {
+    "query": "Qual a duração da prova objetiva para os cargos de nível médio/técnico no concurso da UFG?",
+    "answer": "4 horas e 30 minutos.",
+    "tipo": "rag"
+  },
+  {
+    "query": "Qual o valor do auxílio-alimentação informado no edital da UFG?",
+    "answer": "R$ 1.000,00",
+    "tipo": "rag"
+  },
+  {
+    "query": "Qual é o maior salário inicial entre todos os cargos dos editais, e de qual órgão?",
+    "answer": "R$ 17.743,05, no Tribunal de Contas do Estado de São Paulo (Auditor de Controle Externo).",
+    "tipo": "agregacao"
+  },
+  {
+    "query": "Quantos editais da esfera estadual existem na base?",
+    "answer": "5 editais.",
+    "tipo": "agregacao"
+  },
+  {
+    "query": "Quantos editais do estado do Paraná existem na base?",
+    "answer": "2 editais (Corpo de Bombeiros Militar do Paraná e Prefeitura de Formosa do Oeste).",
+    "tipo": "agregacao"
+  },
+  {
+    "query": "Qual o salário de Delegado da Polícia Federal no concurso de 2025?",
+    "answer": "Essa informação não consta nos editais indexados.",
+    "tipo": "fora_da_base"
+  },
+  {
+    "query": "Quantas vagas tem o concurso do Banco do Brasil de 2025?",
+    "answer": "Essa informação não consta nos editais indexados.",
+    "tipo": "fora_da_base"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "original_filename": "tce_sp.pdf",
+  "conferido_por": "manual, lendo o PDF (págs. 1, 2 e 6)",
+  "edital": {
+    "orgao": "Tribunal de Contas do Estado de São Paulo",
+    "numero_edital": "001/2025",
+    "banca_organizadora": "Fundação VUNESP",
+    "esfera": "estadual",
+    "uf": "SP",
+    "data_publicacao": "2025-03-12",
+    "inscricao_inicio": "2025-03-17",
+    "inscricao_fim": "2025-04-24",
+    "data_prova": "2025-06-15",
+    "taxa_inscricao_min": 82.0,
+    "taxa_inscricao_max": 82.0
+  },
+  "cargos": [
+    {"nome": "Auditor de Controle Externo", "escolaridade": ["superior"], "vagas_total": 59, "salario_inicial": 17743.05, "carga_horaria_semanal": 40},
+    {"nome": "Auditor de Controle Externo - Administração", "escolaridade": ["superior"], "vagas_total": 4, "salario_inicial": 17743.05, "carga_horaria_semanal": 40}
+  ]
+}

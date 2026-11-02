@@ -1,0 +1,4 @@
+# Fase 6: exposição do agente
+fastapi>=0.115
+uvicorn[standard]>=0.30
+mcp>=2.0
