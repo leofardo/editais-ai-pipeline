@@ -1,10 +1,14 @@
 """DAG da Silver: bronze.edital_paginas -> texto limpo -> extração com LLM.
 
-    clean_pages ──► pending_editais ──► extract (1 task por edital) ──► load_extractions
-       (grátis)        (respeita max_editais)     (OpenAI + cache)        (silver.editais / silver.cargos)
+    clean_pages ──► pending_editais ──► extract (1 task por edital) ──► load_extractions ──► avaliar_extracao
+       (grátis)        (respeita max_editais)     (OpenAI + cache)        (silver.editais      (gabaritos, sem LLM)
+                                                                           / silver.cargos)
+
+Disparada quando a ingestão carrega páginas novas; ao terminar a avaliação, dispara a gold.
 
 Proteções de custo:
-- `max_editais` (default 1): no máximo N editais chamam o LLM por execução.
+- `max_editais` (default 1): no máximo N editais chamam o LLM por execução. Vale também no disparo
+  automático: com vários PDFs novos, os demais ficam pendentes até a próxima execução.
 - `max_input_tokens`: teto de tokens de entrada por edital (só páginas relevantes).
 - Cache no lake por (sha256, modelo, versão do prompt): reexecutar não paga de novo.
 """
@@ -13,15 +17,18 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from airflow.datasets import Dataset
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowSkipException
 from airflow.models.param import Param
+
+from editais.pipeline_datasets import BRONZE_PAGINAS, SILVER_AVALIADA
 
 
 @dag(
     dag_id="silver_editais",
     start_date=datetime(2026, 1, 1),
-    schedule=None,
+    schedule=[Dataset(BRONZE_PAGINAS)],
     catchup=False,
     max_active_tasks=2,  # no máximo 2 chamadas simultâneas à OpenAI
     tags=["editais", "silver", "llm"],
@@ -124,7 +131,14 @@ def silver_editais():
         print(f"silver.editais +{n_e} | silver.cargos +{n_c} | tokens in={tok_in} out={tok_out}")
         return {"editais": n_e, "cargos": n_c, "input_tokens": tok_in, "output_tokens": tok_out}
 
-    load_extractions(extract.expand(item=pending_editais(clean_pages())))
+    @task(outlets=[Dataset(SILVER_AVALIADA)])
+    def avaliar_extracao(_loaded: dict) -> dict:
+        """Silver x gabaritos (sem LLM). Quem reprova a versão é o dbt, nos testes da gold."""
+        from editais.extraction_eval import run_evaluation
+
+        return run_evaluation()
+
+    avaliar_extracao(load_extractions(extract.expand(item=pending_editais(clean_pages()))))
 
 
 silver_editais()

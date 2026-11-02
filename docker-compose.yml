@@ -19,6 +19,7 @@ x-airflow-common: &airflow-common
     PYTHONPATH: /opt/airflow/src
     LANDING_DIR: /opt/airflow/data/landing
     LOCAL_LAKE_DIR: /opt/airflow/data/lake
+    GABARITO_DIR: /opt/airflow/evaluation/gabarito
     GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/credentials/gcp-sa.json
     PGVECTOR_HOST: pgvector
     PGVECTOR_PORT: "5432"
@@ -30,6 +31,7 @@ x-airflow-common: &airflow-common
     - ./plugins:/opt/airflow/plugins
     - ./credentials:/opt/airflow/credentials:ro
     - ./dbt:/opt/airflow/dbt
+    - ./evaluation:/opt/airflow/evaluation:ro
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     postgres-airflow:

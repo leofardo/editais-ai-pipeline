@@ -10,8 +10,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from airflow.datasets import Dataset
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowSkipException
+
+from editais.pipeline_datasets import BRONZE_PAGINAS
 
 
 @dag(
@@ -66,7 +69,7 @@ def ingest_editais():
         print(f"{n} linhas carregadas em editais_bronze.ingestion_manifest")
         return n
 
-    @task
+    @task(outlets=[Dataset(BRONZE_PAGINAS)])
     def pages_to_bigquery(records: list[dict]) -> dict:
         """Lake -> BigQuery: extrai o texto de cada PDF e carrega 1 linha por página."""
         import tempfile
@@ -84,6 +87,8 @@ def ingest_editais():
         already = loaded_page_hashes()
         todo = [r for sha, r in valid.items() if sha not in already]
         print(f"{len(valid)} PDFs válidos | {len(valid) - len(todo)} já no BigQuery | {len(todo)} a carregar")
+        if not todo:  # sem página nova, não dispara a silver (que pode chamar o LLM)
+            raise AirflowSkipException("Nenhum PDF novo para carregar")
 
         storage = get_storage(get_settings())
         rows = []

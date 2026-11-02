@@ -1,3 +1,5 @@
+-- depends_on: {{ ref('agg_qualidade_extracao') }}
+-- (sem isso, reprovar nos testes de versão de prompt não impede o dbt de construir este modelo)
 -- Uma linha por edital, com métricas agregadas dos cargos.
 -- Vagas de grupo (ex.: 10.170 da carreira de Professor) entram UMA vez por grupo, não por especialidade.
 with vagas_cargo as (

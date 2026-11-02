@@ -8,23 +8,30 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from airflow.datasets import Dataset
 from airflow.decorators import dag
 from airflow.operators.bash import BashOperator
 
+from editais.pipeline_datasets import GOLD_MODELOS
+
 PY = "/opt/airflow/rag-venv/bin/python"
+# Pelo scheduler, o PYTHONPATH da task aponta para os pacotes do Airflow; no venv, só `src` interessa.
+ENV = {"PYTHONPATH": "/opt/airflow/src"}
 
 
 @dag(
     dag_id="index_rag",
     start_date=datetime(2026, 1, 1),
-    schedule=None,  # depois: disparar após gold_dbt (os metadados vêm da dim_editais)
+    schedule=[Dataset(GOLD_MODELOS)],  # os metadados vêm da dim_editais
     catchup=False,
     tags=["editais", "rag", "pgvector"],
     doc_md=__doc__,
 )
 def index_rag():
-    dry = BashOperator(task_id="estimar_custo", bash_command=f"cd /opt/airflow && {PY} -m editais.rag.index --dry-run")
-    run = BashOperator(task_id="indexar", bash_command=f"cd /opt/airflow && {PY} -m editais.rag.index")
+    dry = BashOperator(task_id="estimar_custo", bash_command=f"cd /opt/airflow && {PY} -m editais.rag.index --dry-run",
+                       env=ENV, append_env=True)
+    run = BashOperator(task_id="indexar", bash_command=f"cd /opt/airflow && {PY} -m editais.rag.index",
+                       env=ENV, append_env=True)
     dry >> run
 
 

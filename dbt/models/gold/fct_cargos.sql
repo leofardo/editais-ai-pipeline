@@ -1,3 +1,5 @@
+-- depends_on: {{ ref('agg_qualidade_extracao') }}
+-- (sem isso, reprovar nos testes de versão de prompt não impede o dbt de construir este modelo)
 -- Fato no grão de cargo, enriquecido com o edital. Base para análises e para o Text-to-SQL (Fase 4).
 select
     c.cargo_id,

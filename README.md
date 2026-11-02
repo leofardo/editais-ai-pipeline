@@ -17,7 +17,7 @@ Plataforma de dados que transforma **editais de concurso público** (PDFs longos
                          │                  ▼  cache, versão do prompt, ancoragem, gabarito   │
                          │        BigQuery SILVER  (editais, cargos, páginas limpas)          │
                          │                  │                                                 │
-                     gold_dbt ──────────────┤  dbt build: modelos + 23 testes de qualidade    │
+                     gold_dbt ──────────────┤  dbt build: modelos + 18 testes de qualidade    │
                          │                  ▼                                                 │
                          │        BigQuery GOLD    (dim_editais, fct_cargos, agregados)       │
                          │                  │                                                 │
@@ -46,6 +46,20 @@ Plataforma de dados que transforma **editais de concurso público** (PDFs longos
 ## Stack
 
 Airflow 2.10 · Docker Compose · BigQuery · dbt-core · pgvector · OpenAI · LangChain · LangGraph
+
+## Orquestração
+
+As DAGs se encadeiam por **Datasets** do Airflow: cada uma só dispara a seguinte quando a sua última task termina com sucesso.
+
+```
+ingest_editais ──► silver_editais ──► gold_dbt ──► index_rag
+    (páginas novas)     (extração avaliada)  (dbt build ok)
+```
+
+- **Dá para ligar por partes.** As DAGs nascem pausadas, e a cadeia só anda entre DAGs despausadas. Com todas despausadas, basta disparar a ingestão.
+- **Sem dado novo, nada é disparado.** Se a ingestão não carregar páginas, ou a silver não tiver edital pendente, as tasks finais são puladas e a DAG seguinte não roda.
+- **O custo continua limitado.** O disparo automático da silver usa o padrão `max_editais=1`: com vários PDFs novos, os demais ficam pendentes para a próxima execução. O índice só paga pelos chunks novos.
+- **Teste também pelo scheduler.** `airflow dags test` roda tudo em um processo e não mostra erros que só aparecem na execução real. Foi assim que passou despercebido um `ImportError` do dbt: pelo scheduler, o `PYTHONPATH` da task apontava para os pacotes do Airflow e furava o virtualenv.
 
 ## Fase 1: ingestão
 
@@ -78,8 +92,9 @@ Decisões de engenharia:
 DAG `silver_editais`:
 
 ```
-clean_pages ──► pending_editais ──► extract (1 task por edital) ──► load_extractions
-  (grátis)      (limite max_editais)   (OpenAI + cache no lake)      (silver.editais / silver.cargos)
+clean_pages ──► pending_editais ──► extract (1 task por edital) ──► load_extractions ──► avaliar_extracao
+  (grátis)      (limite max_editais)   (OpenAI + cache no lake)      (silver.editais /      (gabaritos, sem LLM)
+                                                                      silver.cargos)
 ```
 
 | Tabela | Grão |
@@ -115,7 +130,7 @@ airflow dags test silver_editais -c '{"max_editais": 1, "filename": "tce_sp.pdf"
 
 ### Avaliação da extração
 
-Gabaritos conferidos à mão em `evaluation/gabarito/*.json`. O script compara a silver com o gabarito campo a campo e grava o histórico em `editais_silver.extraction_eval`:
+Gabaritos conferidos à mão em `evaluation/gabarito/*.json`. A task `avaliar_extracao` compara a silver com o gabarito campo a campo e grava o histórico em `editais_silver.extraction_eval`. Para avaliar à mão ou comparar versões:
 
 ```bash
 python scripts/evaluate_extraction.py            # modelo e prompt atuais
@@ -150,10 +165,12 @@ silver.extraction_eval ───────────────────
 
 **Vagas de grupo contam uma vez:** no edital SEE-MG a gold calcula 13.795 vagas, exatamente o número escrito no item 1.1 do edital.
 
-Testes de qualidade (23, todos passando):
+Testes de qualidade (18, todos passando; junto com os 6 modelos, o `dbt build` mostra `PASS=24`):
 - Genéricos: `unique`, `not_null`, `relationships`, `accepted_values`, `between` (macro própria: salário entre R$ 1.000 e o teto constitucional; vagas entre 1 e 20.000).
 - `assert_vagas_nao_replicadas`: o mesmo número ≥ 50 em ≥ 3 cargos do edital. **Comprovado:** rodando a gold sobre a extração v2 (`dbt build --vars '{prompt_version: v2}'`), o teste falha com 3 casos e o dbt não constrói os modelos seguintes.
 - `assert_regressao_gabarito`: a versão de prompt usada na gold não pode ter acurácia < 95% nos gabaritos.
+- `assert_prompt_avaliado`: toda combinação de modelo e versão de prompt usada na gold precisa ter sido avaliada. **Comprovado:** em datasets temporários, com uma versão nunca avaliada (`--vars '{prompt_version: v3}'`), o teste falha e o dbt não constrói `dim_editais` nem `fct_cargos`.
+- Esses dois rodam **antes** de `dim_editais` e `fct_cargos`. Os demais rodam sobre as tabelas já construídas: falham a DAG e seguram o índice do RAG, mas a tabela nova já substituiu a anterior.
 - `assert_datas_coerentes`: fim da inscrição ≥ início; prova ≥ início da inscrição.
 - `numeros_ancorados` (warn): vagas/salário que não aparecem no texto do edital.
 
@@ -381,6 +398,8 @@ Airflow em http://localhost:8080 (`admin` / `admin`).
 
 Se os dados já estão no BigQuery (por exemplo, numa segunda máquina), pule a ingestão e a silver: basta rodar `gold_dbt` e `index_rag`.
 
+Para o pipeline andar sozinho em vez de passo a passo, despause as DAGs (veja [Orquestração](#orquestração)).
+
 **4. API e chat**
 ```bash
 docker compose up -d api ui
@@ -405,7 +424,7 @@ Atalhos (Linux/Mac, com `make`): `make init`, `make up`, `make chat`, `make down
 
 ```bash
 pip install pypdf pymupdf openai pydantic pytest reportlab -r requirements-rag.txt -r requirements-api.txt
-python -m pytest -q        # 43 testes (os de Text-to-SQL exigem as deps de RAG)
+python -m pytest -q        # 47 testes (os de Text-to-SQL exigem as deps de RAG)
 ```
 
 ## Estrutura
@@ -426,6 +445,8 @@ python -m pytest -q        # 43 testes (os de Text-to-SQL exigem as deps de RAG)
 │   ├── llm_extraction.py        # OpenAI + cache + versão do prompt
 │   ├── grounding.py             # o número extraído existe no texto?
 │   ├── evaluation.py            # acurácia, recall, alucinação
+│   ├── extraction_eval.py       # roda a avaliação: silver x gabaritos -> BigQuery
+│   ├── pipeline_datasets.py     # Datasets que encadeiam as DAGs
 │   ├── warehouse.py             # tabelas e cargas no BigQuery
 │   ├── rag/                     # Fases 4 e 5: RAG, Text-to-SQL, roteador, agente LangGraph
 │   └── api/                     # Fase 6: FastAPI, serviço com limite de gasto, servidor MCP
@@ -438,7 +459,7 @@ python -m pytest -q        # 43 testes (os de Text-to-SQL exigem as deps de RAG)
 │   ├── ask.py                   # perguntar pelo terminal
 │   ├── evaluate_extraction.py   # avaliação da extração (silver x gabarito)
 │   └── evaluate_qa.py           # avaliação das respostas (QAEvalChain)
-├── tests/                       # pytest (43 testes)
+├── tests/                       # pytest (47 testes)
 ├── docs/img/                    # capturas do chat
 ├── db/init/                     # cria a extensão pgvector
 ├── data/                        # landing e lake locais (não versionados)
