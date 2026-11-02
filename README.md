@@ -4,20 +4,31 @@
 
 Plataforma de dados que transforma **editais de concurso público** (PDFs longos e não estruturados) em dados consultáveis por **SQL** e por **linguagem natural** (RAG + Text-to-SQL).
 
-## Arquitetura (visão final)
+## Arquitetura
 
 ```
-              Airflow (Docker)
-                    │
- [ingest_editais] ──► Data lake  raw/editais/<sha256>.pdf        ✅ Fase 1
-                    │
- [extract_llm] ─────► OpenAI ──► JSON validado (Pydantic)        ⏳ Fase 2
-                    │                 │
- [dbt] ─────────────┤        BigQuery bronze → silver → gold     ⏳ Fase 3
-                    │
- [index_rag] ───────► chunks + embeddings ──► pgvector           ⏳ Fase 4
-                    
- Agente (LangGraph): pergunta ──► Text-to-SQL (BigQuery) ou RAG (pgvector)   ⏳ Fase 5
+                         ┌──────────────────────── Airflow (Docker) ────────────────────────┐
+ PDFs de editais ──► ingest_editais ──► data lake (raw/<sha256>.pdf)                          │
+                         │                  │                                                 │
+                         │                  ▼                                                 │
+                         │        BigQuery BRONZE  (manifesto + texto por página, PyMuPDF)    │
+                         │                  │                                                 │
+                    silver_editais ─────────┤  limpeza + extração com LLM (OpenAI, Pydantic)  │
+                         │                  ▼  cache, versão do prompt, ancoragem, gabarito   │
+                         │        BigQuery SILVER  (editais, cargos, páginas limpas)          │
+                         │                  │                                                 │
+                     gold_dbt ──────────────┤  dbt build: modelos + 23 testes de qualidade    │
+                         │                  ▼                                                 │
+                         │        BigQuery GOLD    (dim_editais, fct_cargos, agregados)       │
+                         │                  │                                                 │
+                     index_rag ─────────────┴──► chunks por tokens + embeddings ──► pgvector  │
+                         └───────────────────────────────────────────────────────────────────┘
+                                                        │
+              pergunta ──► Agente LangGraph ────────────┤  identifica edital · roteia ·
+                                (Fase 5)                │  Text-to-SQL (gold) ou RAG (pgvector)
+                                                        │  CRAG · Self-RAG · "não encontrei"
+                                                        ▼
+                          API FastAPI + servidor MCP (Fase 6) ──► chat Streamlit (Fase 7)
 ```
 
 ## Roadmap
@@ -343,31 +354,52 @@ docker compose up -d pgvector api ui        # chat em http://localhost:8501 · A
 
 ## Como rodar
 
-Pré-requisito: Docker Desktop (ou Docker Engine + Compose).
+Pré-requisitos: **Docker Desktop** (no Windows, com WSL2), uma chave da **OpenAI** e um projeto no **GCP** com BigQuery (o Sandbox gratuito funciona) e uma service account com acesso ao BigQuery.
 
+**1. Configuração**
 ```bash
-cp .env.example .env          # ajuste se quiser (no Linux: AIRFLOW_UID=$(id -u))
+cp .env.example .env    # Windows (PowerShell): Copy-Item .env.example .env
+```
+No `.env`, preencha `OPENAI_API_KEY` e `GCP_PROJECT_ID`. Salve a chave da service account em `credentials/gcp-sa.json` (ignorado pelo git). No Linux, use também `AIRFLOW_UID=$(id -u)`.
+
+**2. Subir o Airflow e o pgvector**
+```bash
 docker compose build
 docker compose up airflow-init
 docker compose up -d
 ```
+Airflow em http://localhost:8080 (`admin` / `admin`).
 
-Acesse http://localhost:8080 (login `admin` / `admin`).
+**3. Rodar o pipeline** (pela interface do Airflow ou pelo terminal, na ordem)
 
-1. Coloque PDFs de editais em `data/landing/`
-2. Ative e dispare a DAG `ingest_editais`
-3. Veja o resultado em `data/lake/raw/editais/` e `data/lake/manifests/`
+| Passo | Comando | Custo |
+|---|---|---|
+| Ingestão (PDFs em `data/landing/`) | `docker compose exec airflow-scheduler airflow dags test ingest_editais` | grátis |
+| Silver (extração com LLM) | `docker compose exec airflow-scheduler airflow dags test silver_editais -c '{"max_editais": 8}'` | ~US$ 0,05 para 8 editais |
+| Gold (dbt + testes) | `docker compose exec airflow-scheduler airflow dags test gold_dbt` | grátis (free tier) |
+| Índice do RAG | `docker compose exec airflow-scheduler airflow dags test index_rag` | ~US$ 0,01 |
 
-Atalhos: `make init`, `make up`, `make down`, `make logs`, `make test`.
+Se os dados já estão no BigQuery (por exemplo, numa segunda máquina), pule a ingestão e a silver: basta rodar `gold_dbt` e `index_rag`.
 
-### Usando o GCS
+**4. API e chat**
+```bash
+docker compose up -d api ui
+```
+- Chat: http://localhost:8501
+- API (Swagger): http://localhost:8000/docs
+- MCP (opcional): `docker compose --profile mcp up -d mcp` → http://localhost:8001/mcp
 
-1. Crie um bucket e uma service account com papel **Storage Object Admin** nesse bucket
-2. Salve a chave JSON em `credentials/gcp-sa.json` (já ignorada pelo git)
-3. No `.env`: `STORAGE_BACKEND=gcs` e `GCS_BUCKET=<seu-bucket>`
-4. Reinicie: `docker compose up -d`
+**Parar tudo:** `docker compose down`
 
-> 💰 Crie um **alerta de orçamento** no GCP e um **limite de gasto** na OpenAI antes de começar.
+Atalhos (Linux/Mac, com `make`): `make init`, `make up`, `make chat`, `make down`, `make test`.
+
+### Usando o GCS como data lake (opcional)
+
+1. Crie um bucket e dê à service account o papel **Storage Object Admin** nele (o GCS exige conta de faturamento).
+2. No `.env`: `STORAGE_BACKEND=gcs` e `GCS_BUCKET=<seu-bucket>`.
+3. Reinicie: `docker compose up -d`.
+
+> 💰 Crie um **alerta de orçamento** no GCP e um **limite de gasto** na OpenAI antes de começar. A API também tem trava própria (`DAILY_BUDGET_USD`).
 
 ## Testes
 
@@ -379,38 +411,39 @@ python -m pytest -q        # 43 testes (os de Text-to-SQL exigem as deps de RAG)
 ## Estrutura
 
 ```
-├── dags/ingest_editais.py      # DAG (só orquestração)
+├── dags/
+│   ├── ingest_editais.py        # Fase 1: PDFs -> lake -> bronze
+│   ├── silver_editais.py        # Fase 2: limpeza + extração com LLM -> silver
+│   ├── gold_dbt.py              # Fase 3: dbt build -> gold
+│   └── index_rag.py             # Fase 4: chunks + embeddings -> pgvector
 ├── src/editais/
-│   ├── config.py               # settings via variáveis de ambiente
-│   ├── storage.py              # data lake: LocalStorage | GCSStorage
-│   ├── ingestion.py            # regras: hash, validação, idempotência, manifesto
-│   ├── text_extraction.py      # PDF -> 1 linha por página
-│   ├── cleaning.py             # limpeza do texto (silver)
-│   ├── page_selection.py       # escolhe as páginas que vão para o LLM
-│   ├── extraction_schema.py    # contrato Pydantic do edital/cargo
-│   ├── llm_extraction.py       # OpenAI + cache + versão do prompt
-│   ├── grounding.py            # o número extraído existe no texto?
-│   ├── evaluation.py           # métricas: acurácia, recall, alucinação
-│   └── warehouse.py            # tabelas e cargas no BigQuery
-├── dags/silver_editais.py      # DAG da silver
-├── dags/gold_dbt.py            # DAG da gold (dbt build)
-├── dags/index_rag.py           # DAG de indexação no pgvector
-├── src/editais/rag/            # RAG, Text-to-SQL, roteador, agente LangGraph
-├── src/editais/api/            # FastAPI (main.py), serviço com limite de gasto, servidor MCP
-├── streamlit_app/              # chat (Streamlit + styles.css)
-├── Dockerfile.api / Dockerfile.ui
-├── docs/img/                   # capturas do chat
-├── scripts/ask.py              # perguntar pelo terminal
-├── scripts/evaluate_qa.py      # avaliação com QAEvalChain
-├── evaluation/qa_dataset.json  # perguntas com resposta conferida
-├── requirements-rag.txt        # deps da camada de consulta (venv isolado)
-├── dbt/                        # projeto dbt: staging, gold, testes, macros
-├── evaluation/gabarito/        # gabaritos conferidos à mão
-├── scripts/evaluate_extraction.py
-├── tests/                      # pytest
-├── db/init/                    # cria a extensão pgvector
-├── data/landing/               # PDFs de entrada (não versionados)
-├── data/lake/                  # data lake local (não versionado)
+│   ├── config.py · storage.py   # settings e data lake (local | GCS)
+│   ├── ingestion.py             # hash, validação, idempotência, manifesto
+│   ├── text_extraction.py       # PDF -> 1 linha por página (PyMuPDF)
+│   ├── cleaning.py              # limpeza do texto
+│   ├── page_selection.py        # escolhe as páginas que vão para o LLM
+│   ├── extraction_schema.py     # contrato Pydantic do edital e do cargo
+│   ├── llm_extraction.py        # OpenAI + cache + versão do prompt
+│   ├── grounding.py             # o número extraído existe no texto?
+│   ├── evaluation.py            # acurácia, recall, alucinação
+│   ├── warehouse.py             # tabelas e cargas no BigQuery
+│   ├── rag/                     # Fases 4 e 5: RAG, Text-to-SQL, roteador, agente LangGraph
+│   └── api/                     # Fase 6: FastAPI, serviço com limite de gasto, servidor MCP
+├── dbt/                         # Fase 3: staging, gold, testes, macros
+├── streamlit_app/               # Fase 7: chat (app.py + styles.css)
+├── evaluation/
+│   ├── gabarito/                # extração conferida à mão
+│   └── qa_dataset.json          # perguntas com resposta conferida
+├── scripts/
+│   ├── ask.py                   # perguntar pelo terminal
+│   ├── evaluate_extraction.py   # avaliação da extração (silver x gabarito)
+│   └── evaluate_qa.py           # avaliação das respostas (QAEvalChain)
+├── tests/                       # pytest (43 testes)
+├── docs/img/                    # capturas do chat
+├── db/init/                     # cria a extensão pgvector
+├── data/                        # landing e lake locais (não versionados)
 ├── docker-compose.yml
-└── Dockerfile
+├── Dockerfile                   # Airflow + venvs isolados (dbt, RAG)
+├── Dockerfile.api · Dockerfile.ui
+└── requirements*.txt            # pipeline · RAG · API · UI
 ```
